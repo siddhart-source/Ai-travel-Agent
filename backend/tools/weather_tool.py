@@ -14,17 +14,20 @@ CITY_COORDINATES = {
 }
 
 @tool
-def get_weather(query: str) -> str:
+def get_weather(location: str, days: int = 3) -> str:
     """
-    Get weather forecast for a city.
-    Input format: 'CITY' or 'CITY, DAYS'
-    Example: 'Goa' or 'Goa, 3'
-    Returns temperature forecast for upcoming days.
+    Get weather forecast for a specific city over a certain number of days.
+    
+    Args:
+        location: The name of the city to check weather for (e.g., 'Delhi', 'Goa')
+        days: Optional number of forecast days needed. Defaults to 3.
     """
     try:
-        parts = query.split(",")
-        city = parts[0].strip().title()
-        days = int(parts[1].strip()) if len(parts) > 1 else 3
+        # Format the location parameter cleanly
+        city = location.strip().title()
+        
+        # Ensure days is treated as an integer type
+        num_days = int(days)
 
         if city not in CITY_COORDINATES:
             return f"City '{city}' not found. Available: {', '.join(CITY_COORDINATES.keys())}"
@@ -36,24 +39,24 @@ def get_weather(query: str) -> str:
             f"https://api.open-meteo.com/v1/forecast"
             f"?latitude={lat}&longitude={lon}"
             f"&daily=temperature_2m_max,temperature_2m_min,precipitation_sum"
-            f"&timezone=auto&forecast_days={days}"
+            f"&timezone=auto&forecast_days={num_days}"
         )
 
         response = requests.get(url)
         data = response.json()
 
         daily = data["daily"]
-        result = f"Weather forecast for {city} ({days} days):\n\n"
+        result = f"Weather forecast for {city} ({num_days} days):\n\n"
 
-        for i in range(days):
+        for i in range(num_days):
             date = daily["time"][i]
             max_temp = daily["temperature_2m_max"][i]
             min_temp = daily["temperature_2m_min"][i]
             rain = daily["precipitation_sum"][i]
 
             result += f"Day {i+1} ({date}):\n"
-            result += f"  🌡 Max: {max_temp}°C  Min: {min_temp}°C\n"
-            result += f"  🌧 Rainfall: {rain}mm\n\n"
+            result += f"   🌡 Max: {max_temp}°C  Min: {min_temp}°C\n"
+            result += f"   🌧 Rainfall: {rain}mm\n\n"
 
         return result.strip()
 

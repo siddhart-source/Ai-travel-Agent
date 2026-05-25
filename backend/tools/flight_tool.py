@@ -1,23 +1,28 @@
 import json
+import os
+from pathlib import Path
 from langchain.tools import tool
 from datetime import datetime
 
 def load_flights():
     """Load flights data from JSON file."""
-    with open("data/flights.json", "r") as f:
+    data_path = Path(__file__).parent.parent / "data" / "flights.json"
+    with open(data_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 @tool
-def search_flights(query: str) -> str:
+def search_flights(source: str, destination: str) -> str:
     """
-    Search for flights. Input format: 'FROM to TO'
-    Example: 'Hyderabad to Delhi'
-    Returns cheapest and fastest flight options.
+    Search for available flights between an origin city and a destination city.
+    
+    Args:
+        source: The city name where the flight originates (e.g., 'Hyderabad').
+        destination: The target city name (e.g., 'Delhi').
     """
     try:
-        parts = query.lower().split(" to ")
-        source = parts[0].strip().title()
-        destination = parts[1].strip().title()
+        # Format strings safely
+        source = source.strip().title()
+        destination = destination.strip().title()
 
         flights = load_flights()
 
@@ -34,12 +39,12 @@ def search_flights(query: str) -> str:
         cheapest = sorted(matches, key=lambda x: x["price"])[0]
 
         # Sort by duration to get fastest
-        def duration(f):
+        def get_duration(f):
             dep = datetime.fromisoformat(f["departure_time"])
             arr = datetime.fromisoformat(f["arrival_time"])
-            return (arr - dep).seconds
+            return (arr - dep).total_seconds()  # using total_seconds() accounts for crossing midnights safely
 
-        fastest = sorted(matches, key=duration)[0]
+        fastest = sorted(matches, key=get_duration)[0]
 
         result = f"""
 Flights from {source} to {destination}:
