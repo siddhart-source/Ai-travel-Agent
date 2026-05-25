@@ -14,13 +14,13 @@ CITY_COORDINATES = {
 }
 
 @tool
-def get_weather(location: str, days: int = 3) -> str:
+def get_weather(location: str, days: str = "3") -> str:
     """
     Get weather forecast for a specific city over a certain number of days.
     
     Args:
         location: The name of the city to check weather for (e.g., 'Delhi', 'Goa')
-        days: Optional number of forecast days needed. Defaults to 3.
+        days: Optional number of forecast days needed. Defaults to "3".
     """
     try:
         # Format the location parameter cleanly

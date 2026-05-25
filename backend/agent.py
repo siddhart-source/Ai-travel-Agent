@@ -20,7 +20,7 @@ load_dotenv(dotenv_path=env_path)
 # Initialize Groq LLM with slight temperature for robust formatting stability
 llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
-    model="llama-3.3-70b-versatile",
+    model="llama-3.1-8b-instant",
     temperature=0.1
 )
 
@@ -32,10 +32,7 @@ def plan_trip(query: str) -> str:
     messages = [
         SystemMessage(content="""You are an expert AI travel planning assistant for India.
 Use the available tools to search flights, hotels, places, weather and estimate budget.
-CRITICAL INSTRUCTION FOR TOOL USE:
-When calling a tool, you must use native tool calling syntax. 
-DO NOT wrap your tool calls in custom text tags like '<function=...>' or '</function>'.
-Provide a clean tool call response only."""),
+Always use the tools to gather necessary details before outputting the final itinerary."""),
         HumanMessage(content=query)
     ]
 
@@ -75,12 +72,10 @@ Provide a clean tool call response only."""),
 async def plan_trip_stream(query: str):
     """Run the travel planning agent asynchronously and yield events."""
     messages = [
-        SystemMessage(content="""You are an expert AI travel planning assistant for India.
-Use the available tools to search flights, hotels, places, weather and estimate budget.
-CRITICAL INSTRUCTION FOR TOOL USE:
-When calling a tool, you must use native tool calling syntax. 
-DO NOT wrap your tool calls in custom text tags like '<function=...>' or '</function>'.
-Provide a clean tool call response only."""),
+        SystemMessage(content="""You are an expert AI travel planning assistant.
+1. Use the provided tools to gather all necessary information (flights, hotels, weather, places, budget).
+2. Once all information is gathered, output a highly detailed day-by-day Final Itinerary.
+3. FORMATTING: You must use Markdown headings (e.g., `## Day 1: Arrival`, `## Day 2: Sightseeing`, `## Budget Breakdown`) to separate the sections of your itinerary so it renders beautifully in our frontend cards. Do not return JSON for the final itinerary."""),
         HumanMessage(content=query)
     ]
 
@@ -92,8 +87,29 @@ Provide a clean tool call response only."""),
         response = await llm_with_tools.ainvoke(messages)
         messages.append(response)
 
-        # If the LLM didn't request any more tools, the itinerary is finished
-        if not response.tool_calls:
+        # If the LLM didn't request any more tools natively, check for hallucinated JSON
+        if not getattr(response, "tool_calls", None):
+            content = response.content or ""
+            # Fallback: Catch Llama 3 hallucinating raw JSON tool calls
+            if '{"type": "function"' in content:
+                try:
+                    fixed_json = "[" + content.replace("} {", "}, {") + "]"
+                    tools = json.loads(fixed_json)
+                    parsed_tools = []
+                    for i, obj in enumerate(tools):
+                        if obj.get("type") == "function" and "name" in obj:
+                            parsed_tools.append({
+                                "name": obj["name"],
+                                "args": obj.get("parameters", {}),
+                                "id": f"call_fallback_{i}"
+                            })
+                    if parsed_tools:
+                        response.tool_calls = parsed_tools
+                except Exception:
+                    pass
+
+        # If it's truly finished and no tools (native or fallback) were found
+        if not getattr(response, "tool_calls", None):
             yield {"type": "final_result", "content": response.content}
             break
 

@@ -6,8 +6,18 @@ import { AgentConsole } from './components/AgentConsole';
 import { ItineraryTimeline } from './components/ItineraryTimeline';
 import { Skeleton } from './components/ui/Skeleton';
 
+const BACKEND_URL = (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") ? "http://localhost:8000" : "") || import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const API_ENDPOINT = `${BACKEND_URL}/plan`;
+const WS_ENDPOINT = BACKEND_URL.startsWith("https") 
+  ? BACKEND_URL.replace("https://", "wss://") + "/ws/plan" 
+  : BACKEND_URL.replace("http://", "ws://") + "/ws/plan";
+
+const CITIES = ["Delhi", "Mumbai", "Goa", "Hyderabad", "Bangalore", "Chennai", "Kolkata", "Jaipur"];
+
 function App() {
-  const [query, setQuery] = useState('');
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
+  const [days, setDays] = useState('');
   const [isPlanning, setIsPlanning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [itinerary, setItinerary] = useState(null);
@@ -24,7 +34,9 @@ function App() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!source || !destination || !days) return;
+
+    const query = `Plan a ${days} day trip from ${source} to ${destination}`;
 
     // Reset state
     setLogs([]);
@@ -33,7 +45,7 @@ function App() {
     setIsAgentThinking(true);
 
     // Initialize WebSocket
-    websocket.current = new WebSocket('ws://localhost:8000/ws/chat');
+    websocket.current = new WebSocket(WS_ENDPOINT);
     
     websocket.current.onopen = () => {
       websocket.current.send(JSON.stringify({ query }));
@@ -74,31 +86,69 @@ function App() {
           <Compass className="h-4 w-4" />
           <span className="text-sm font-medium">Llama 3.3 Powered AI Agent</span>
         </div>
-        <h1 className="text-5xl font-extrabold tracking-tight sm:text-6xl max-w-3xl bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight max-w-3xl bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60">
           Design Your Perfect Journey
         </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl">
+        <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl">
           Enter your travel desires and watch our autonomous agent coordinate flights, hotels, weather, and budget to build your perfect itinerary.
         </p>
 
         {/* Input Command Center */}
-        <form onSubmit={handleSearch} className="w-full max-w-2xl relative mt-8 group animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <form onSubmit={handleSearch} className="w-full max-w-4xl relative mt-8 group animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-600 rounded-xl blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative flex items-center bg-card rounded-xl border border-border shadow-2xl">
-            <Search className="absolute left-4 h-5 w-5 text-muted-foreground" />
-            <Input 
-              className="h-14 pl-12 pr-32 text-lg bg-transparent border-none glow-input rounded-xl"
-              placeholder="e.g., Plan a 3 day trip from Hyderabad to Delhi..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+          <div className="relative flex flex-col md:flex-row items-center bg-card rounded-xl border border-border shadow-2xl p-2 gap-2">
+            <select
+              className="flex h-14 w-full md:flex-1 items-center justify-between rounded-lg border border-input bg-background px-4 py-2 text-lg ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
               disabled={isPlanning}
-            />
+              required
+            >
+              <option value="" disabled>Select Source</option>
+              {CITIES.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+
+            <select
+              className="flex h-14 w-full md:flex-1 items-center justify-between rounded-lg border border-input bg-background px-4 py-2 text-lg ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              disabled={isPlanning}
+              required
+            >
+              <option value="" disabled>Select Destination</option>
+              {CITIES.map(city => (
+                <option 
+                  key={city} 
+                  value={city} 
+                  disabled={city === source}
+                  className={city === source ? "text-muted-foreground bg-muted" : ""}
+                >
+                  {city}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="flex h-14 w-full md:w-32 items-center justify-between rounded-lg border border-input bg-background px-4 py-2 text-lg ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={days}
+              onChange={(e) => setDays(e.target.value)}
+              disabled={isPlanning}
+              required
+            >
+              <option value="" disabled>Days</option>
+              {[1, 2, 3, 4, 5, 6, 7].map(day => (
+                <option key={day} value={day}>{day}</option>
+              ))}
+            </select>
+
             <Button 
               type="submit" 
-              className="absolute right-2 h-10 rounded-lg shadow-lg font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
-              disabled={isPlanning || !query.trim()}
+              className="h-14 w-full md:w-auto rounded-lg shadow-lg font-medium bg-primary hover:bg-primary/90 text-primary-foreground px-8 text-lg"
+              disabled={isPlanning || !source || !destination || !days}
             >
-              {isPlanning ? 'Planning...' : 'Generate Trip'}
+              {isPlanning ? 'Planning...' : 'GENERATE TRIP'}
             </Button>
           </div>
         </form>

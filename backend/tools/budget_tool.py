@@ -1,7 +1,7 @@
 from langchain.tools import tool
 
 @tool
-def estimate_budget(flight_price: float, hotel_price: float, days: int) -> str:
+def estimate_budget(flight_price: str, hotel_price: str, days: str) -> str:
     """
     Estimate total trip budget breakdown based on flight cost, hotel cost, and duration.
     
