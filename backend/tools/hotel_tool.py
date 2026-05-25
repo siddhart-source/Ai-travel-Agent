@@ -10,13 +10,13 @@ def load_hotels():
         return json.load(f)
 
 @tool
-def search_hotels(location: str, min_stars: int = 0) -> str:
+def search_hotels(location: str, min_stars: str = "0") -> str:
     """
     Search for hotels in a specific city with an optional minimum star rating filter.
     
     Args:
         location: The name of the city to search for hotels in (e.g., 'Delhi', 'Mumbai').
-        min_stars: Optional minimum star rating required (e.g., 3, 4, 5). Defaults to 0.
+        min_stars: Optional minimum star rating required (e.g., 3, 4, 5). Defaults to "0".
     """
     try:
         # Format the city name cleanly

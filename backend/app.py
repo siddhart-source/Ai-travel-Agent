@@ -1,4 +1,5 @@
 import json
+import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,10 +8,12 @@ from agent import plan_trip_stream
 
 app = FastAPI(title="AI Travel Agent")
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 # Allow requests from the React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_URL, "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,7 +23,7 @@ app.add_middleware(
 def read_root():
     return {"status": "Travel Agent API is running"}
 
-@app.websocket("/ws/chat")
+@app.websocket("/ws/plan")
 async def chat_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
